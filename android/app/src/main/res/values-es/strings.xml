@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Spanish. Android picks this file when the television is set to Spanish; anything
+    else falls back to values/strings.xml, which is English.
+
+    app_name is deliberately absent: a device name is not translated, and this one is
+    what shows up in Spotify's device list.
+-->
+<resources>
+    <string name="channel_name">Reproducción</string>
+    <string name="notification_text">Disponible en Spotify</string>
+
+    <!-- Botones -->
+    <string name="start">Iniciar</string>
+    <string name="apply_and_restart">Aplicar y reiniciar</string>
+    <string name="stop">Detener</string>
+    <string name="sign_in">Iniciar sesión en Spotify</string>
+    <string name="save">Guardar</string>
+    <string name="cancel">Cancelar</string>
+
+    <!-- Ajustes -->
+    <string name="output_title">Reproducir en</string>
+    <string name="output_subtitle">Elige un altavoz o grupo de Google Home</string>
+    <string name="crossfade_title">Crossfade</string>
+    <string name="crossfade_subtitle">Funde el final de una pista con el comienzo de la siguiente</string>
+    <string name="albums_title">Fundir también dentro de un álbum</string>
+    <string name="albums_subtitle">Con «No», las pistas seguidas de un álbum se encadenan sin hueco ni fundido</string>
+    <string name="reports_title">Informes de fallo</string>
+    <string name="reports_subtitle">Cuando algo peta, envía un informe a una issue pública de GitHub, sin tu cuenta ni tus tokens</string>
+    <string name="version_title">Versión</string>
+    <string name="version_subtitle">Comprueba si hay una publicada más nueva</string>
+
+    <!-- Valores -->
+    <string name="none">Ninguno</string>
+    <string name="yes">Sí</string>
+    <string name="no">No</string>
+    <string name="off">Desactivado</string>
+    <string name="seconds">%1$d s</string>
+    <string name="yes_with_reports">Sí · %1$d informe(s)</string>
+
+    <!-- Diálogos -->
+    <string name="status_pick_output">Elige primero un altavoz o grupo: este puente no tiene sonido propio.</string>
+    <string name="crossfade_dialog_title">Segundos de fundido</string>
+
+    <!-- Línea de estado -->
+    <string name="status_not_signed_in">Sin iniciar sesión todavía.</string>
+    <string name="status_settings_changed">Ajustes cambiados. Pulsa «Aplicar y reiniciar».</string>
+    <string name="status_running">Sonando como «%1$s»</string>
+    <string name="status_running_on">Sonando como «%1$s» en %2$s</string>
+    <string name="status_ready">Listo. Pulsa «Iniciar» y elígelo en Spotify.</string>
+    <string name="status_sign_in_first">Inicia sesión en Spotify primero.</string>
+    <string name="status_searching">Buscando altavoces y grupos…</string>
+    <string name="status_nothing_found">No contestó ningún dispositivo. ¿Están encendidos?</string>
+    <string name="status_signed_in">Sesión iniciada.</string>
+    <string name="status_auth_code">Entra en %1$s e introduce el código: %2$s</string>
+    <string name="status_auth_failed">Falló el acceso o caducó el código.</string>
+    <string name="status_auth_error">No se pudo iniciar el acceso. Revisa la red.</string>
+    <string name="status_update">Hay una versión nueva: %1$s · github.com/%2$s/releases</string>
+
+    <!-- Apoyo -->
+    <string name="support_title">Hecho con cariño por Jeremy ♥</string>
+    <string name="support_subtitle">Escánealo con el móvil: contacto, código fuente y, si te sirve, un café.</string>
+    <string name="support_qr_alt">Código QR con la página del proyecto</string>
+</resources>

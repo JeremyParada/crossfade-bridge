@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    English is the default because a television set to any language the app does not
+    carry falls back to this file. Spanish lives in values-es/.
+-->
+<resources>
+    <string name="app_name">Crossfade Bridge</string>
+    <string name="channel_name">Playback</string>
+    <string name="notification_text">Available in Spotify</string>
+
+    <!-- Buttons -->
+    <string name="start">Start</string>
+    <string name="apply_and_restart">Apply and restart</string>
+    <string name="stop">Stop</string>
+    <string name="sign_in">Sign in to Spotify</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Settings -->
+    <string name="output_title">Play on</string>
+    <string name="output_subtitle">Pick a speaker or Google Home group</string>
+    <string name="crossfade_title">Crossfade</string>
+    <string name="crossfade_subtitle">Blends the end of a track into the start of the next</string>
+    <string name="albums_title">Crossfade within an album too</string>
+    <string name="albums_subtitle">With \"No\", consecutive album tracks run on with no gap and no blend</string>
+    <string name="reports_title">Failure reports</string>
+    <string name="reports_subtitle">When something breaks, sends a report to a public issue on GitHub, with your account and any tokens removed</string>
+    <string name="version_title">Version</string>
+    <string name="version_subtitle">Checks whether a newer one has been published</string>
+
+    <!-- Values -->
+    <string name="none">None</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="off">Off</string>
+    <string name="seconds">%1$d s</string>
+    <string name="yes_with_reports">Yes · %1$d report(s)</string>
+
+    <!-- Dialogs -->
+    <string name="status_pick_output">Pick a speaker or group first: this bridge has no sound of its own.</string>
+    <string name="crossfade_dialog_title">Seconds of blend</string>
+
+    <!-- Status line -->
+    <string name="status_not_signed_in">Not signed in yet.</string>
+    <string name="status_settings_changed">Settings changed. Press \"Apply and restart\".</string>
+    <string name="status_running">Playing as \"%1$s\"</string>
+    <string name="status_running_on">Playing as \"%1$s\" on %2$s</string>
+    <string name="status_ready">Ready. Press \"Start\" and pick it in Spotify.</string>
+    <string name="status_sign_in_first">Sign in to Spotify first.</string>
+    <string name="status_searching">Looking for speakers and groups…</string>
+    <string name="status_nothing_found">Nothing answered. Are they switched on?</string>
+    <string name="status_signed_in">Signed in.</string>
+    <string name="status_auth_code">Go to %1$s and enter the code: %2$s</string>
+    <string name="status_auth_failed">Sign-in failed or the code expired.</string>
+    <string name="status_auth_error">Could not start the sign-in. Check the network.</string>
+    <string name="status_update">A newer version is out: %1$s · github.com/%2$s/releases</string>
+
+    <!-- Support -->
+    <string name="support_title">Made with love by Jeremy ♥</string>
+    <string name="support_subtitle">Scan with your phone: contact, source code and, if it is useful to you, a way to buy me a coffee.</string>
+    <string name="support_qr_alt">QR code linking to the project page</string>
+</resources>

@@ -1,0 +1,25 @@
+name = "crossfade-bridge-relay"
+main = "worker.js"
+compatibility_date = "2026-09-19"
+
+# Preview URLs are public endpoints with the same token behind them, one per deployed
+# version, and this relay has no use for them: it is called by an app, never opened by
+# hand. Fewer doors to the same secret.
+preview_urls = false
+
+# GITHUB_TOKEN is deliberately absent: it is a secret, set with
+#   wrangler secret put GITHUB_TOKEN
+# Putting it here would commit it to the repository, which is the very thing this
+# relay exists to avoid.
+
+# Ten reports a minute from one address. A television that has gone wrong in a loop
+# cannot fill the repository, and nobody else is affected by it. Raise the limit here
+# rather than in the code; the worker treats a missing binding as "no limit", so it
+# still runs if this file is not used.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

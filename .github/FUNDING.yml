@@ -1,0 +1,7 @@
+# Puts a "Sponsor" button in the repository header, next to Watch and Fork.
+# GitHub reads this file; nothing in the project does.
+#
+# `custom` rather than a platform key because this is a personal PayPal account:
+# PayPal.Me is a link, and a link is what a phone can follow from a QR code. An email
+# address would mean opening PayPal and typing it out by hand.
+custom: ["https://paypal.me/jereparada"]

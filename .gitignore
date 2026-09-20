@@ -1,0 +1,34 @@
+# Entorno de Python
+.venv/
+__pycache__/
+*.pyc
+
+# Audio de pruebas
+*.mp3
+*.pcm
+*.wav
+
+# Logs de ejecucion
+*.log
+
+# El fork de librespot es su propio repositorio, con su rama y su remoto.
+# Anclado a la raiz: sin la barra inicial tambien excluiria el paquete Java
+# android/app/src/main/kotlin/org/librespot/, y el Kotlin desapareceria del repo
+# sin un solo aviso.
+/librespot/
+
+# CREDENCIALES DE SPOTIFY. Nunca deben entrar aqui: una vez commiteadas quedan en el
+# historial aunque se borren despues. Se regeneran con --enable-device-auth.
+cache/
+cache-tv/
+
+# Estado local de wrangler, que incluye el id de cuenta de Cloudflare. Anclado a
+# proposito: hasta ahora solo lo excluia por accidente la regla `cache/` de arriba.
+relay/.wrangler/
+
+# Artefactos de compilacion del APK
+android/build-manual/
+android/.gradle/
+android/build/
+# Ruta del SDK, especifica de cada maquina
+android/local.properties
