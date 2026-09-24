@@ -87,8 +87,12 @@ No está en ninguna tienda; se instala de lado. Descarga el APK de
 
 ```bash
 adb connect <ip-de-la-tv>:<puerto>
-adb install -r CrossfadeBridge-0.1.0.apk
+adb install -r CrossfadeBridge-0.1.2.apk
 ```
+
+> **¿Vienes de la 0.1.0 o la 0.1.1? Desinstálala antes** (`adb uninstall org.librespot.embed`).
+> La 0.1.2 va firmada con una clave nueva y Android se niega a instalarla encima de la
+> anterior. Tendrás que volver a iniciar sesión en Spotify, que ahora es escanear un QR.
 
 Para que `adb` funcione, en la tele: **Ajustes → Sistema → Acerca de →** siete pulsaciones
 sobre *Compilación* → **Opciones para desarrolladores → Depuración inalámbrica**. El
@@ -108,20 +112,44 @@ que te va a gustar el fundido entre altavoces, esta no es tu herramienta.
 
 ### Usar
 
-1. **Iniciar sesión en Spotify.** En la tele, pulsa el botón **«Iniciar sesión en
-   Spotify»** — está al lado de «Iniciar», y solo aparece mientras no haya sesión. En
-   pantalla sale un código. Abre **spotify.com/pair** en el móvil o el computador, inicia
-   sesión ahí si te lo pide, y escribe ese código. La tele lo recoge sola a los pocos
-   segundos; el botón desaparece, y así sabes que funcionó.
+1. **Primero, una pregunta opcional:** si la app puede *mostrarse sobre otras apps*. Solo
+   hace falta si la propia tele está en el grupo de altavoces (ver [En la pantalla](#en-la-pantalla)).
+   **Activar** abre los ajustes de la tele; enciende el interruptor de Crossfade Bridge,
+   vuelve con Atrás, y la tarjeta muestra *activado ✓* y sigue sola. **Ahora no** se la
+   salta. Se pregunta una vez; luego se cambia desde la fila de ajustes.
+2. **Iniciar sesión en Spotify.** La tele muestra un **código QR** y un código corto en
+   letra grande. Escanea el QR con el móvil y confirma — o entra en **spotify.com/pair** y
+   escribe el código. La tele lo recoge sola a los pocos segundos. No se muestra nada más
+   hasta vincular la cuenta, porque sin ella nada más funciona.
 
    Las credenciales se acuñan **en el aparato** y se quedan ahí.
-2. **Elegir dónde suena.** La app busca por mDNS y lista tus altavoces y grupos.
-3. **Iniciar.** Aparece en Spotify como dispositivo Connect llamado *Crossfade Bridge*, en
+3. **Elegir dónde suena.** La app busca por mDNS y lista tus altavoces y grupos.
+4. **Iniciar.** El botón sigue al puente: **Iniciar** (verde) → **Iniciando…** →
+   **Detener** (rojo), con la línea de estado en color. Aparece en Spotify como dispositivo Connect llamado *Crossfade Bridge*, en
    todos tus aparatos, porque librespot se registra en la nube de Spotify igual que los
    clientes oficiales.
 
 El play, la pausa y el siguiente siguen estando en Spotify. La app solo decide el destino
 y cómo se funden las pistas.
+
+Si se cae la conexión del puente con Spotify — un corte de red, una sesión que caduca a
+los días — lo detecta en segundos y se reconecta solo. Pulsar Iniciar también lo reanima.
+
+### En la pantalla
+
+Cuando empieza una canción, la tele muestra **lo que suena**: la portada, un fondo con
+esa misma portada desenfocada, el título, los artistas, el álbum y el progreso. La
+pantalla no se apaga mientras suena; en pausa deja entrar el salvapantallas de la tele.
+
+**Si la tele forma parte del grupo de altavoces**, al castear abre el *Default Media
+Receiver* de Google a pantalla completa, sin nada. En Android 14 una app no puede volver
+a ponerse delante, así que con el permiso opcional de *mostrar sobre otras apps* la
+portada se dibuja **encima**. **Atrás** o **Inicio** la cierran; se va sola tras 5
+minutos sin música y vuelve cuando empieza la siguiente canción. Los demás botones no
+hacen nada, para que una flecha pulsada sin querer no destape el receptor vacío.
+
+Sin el permiso, la portada sigue ahí siempre que la app esté delante, y desde el botón
+**Ahora suena**.
 
 ### Ajustes
 
@@ -130,6 +158,7 @@ y cómo se funden las pistas.
 | **Reproducir en** | El altavoz o grupo. Obligatorio: el puente no tiene sonido propio, así que sin destino no arranca. |
 | **Crossfade** | Segundos de fundido, 0 a 12. Con 0 se desactiva. |
 | **Fundir también dentro de un álbum** | Por defecto *No*: las pistas seguidas de un álbum se encadenan sin hueco ni fundido, que es lo que hace Spotify. La masterización del disco ya resuelve ese empalme. Ponlo en *Sí* si prefieres no oír ninguna junta nunca. |
+| **Mostrar sobre otras apps** | Si la portada puede dibujarse encima del receptor de Google. Abre los ajustes de la tele, donde se enciende o apaga. |
 | **Informes de fallo** | Apagado por defecto. Ver abajo. |
 | **Versión** | Consulta los releases de GitHub. Solo avisa: instalar sigue siendo cosa tuya. |
 
@@ -231,9 +260,12 @@ lo que debe sobrevivir:
 cd android && ./test-redact.sh
 ```
 
-**El APK publicado va firmado con un keystore de depuración**, que es lo que sale de un
-build sin Gradle. Android lo acepta para instalar de lado; no es una firma de release, y
-un APK firmado con otra clave no puede actualizarlo encima.
+**Firma.** El script firma con `android/signing/crossfade-bridge.keystore`, que queda
+fuera de git, y **se detiene si falta** en vez de fabricar otra. Un APK firmado con otra
+clave no puede actualizar uno instalado, así que una clave que cambia en silencio obliga
+a todos a desinstalar y volver a iniciar sesión — que es lo que tuvo que hacer la 0.1.2
+tras perderse la clave anterior. Un fork necesita su propio keystore ahí
+(`keytool -genkeypair`); guárdale copia.
 
 ---
 

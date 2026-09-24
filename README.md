@@ -86,8 +86,12 @@ It is in no store; you sideload it. Download the APK from
 
 ```bash
 adb connect <tv-ip>:<port>
-adb install -r CrossfadeBridge-0.1.0.apk
+adb install -r CrossfadeBridge-0.1.2.apk
 ```
+
+> **Coming from 0.1.0 or 0.1.1? Uninstall it first** (`adb uninstall org.librespot.embed`).
+> 0.1.2 is signed with a new key, and Android refuses to install it over the old one.
+> You will sign in to Spotify again, which now takes one QR scan.
 
 For `adb` to work, on the television: **Settings → System → About →** press *Build* seven
 times → **Developer options → Wireless debugging**. The pairing port and the connection
@@ -107,20 +111,45 @@ gapless speakers would please you, this is the wrong tool.
 
 ### Using it
 
-1. **Sign in to Spotify.** On the television, press the **"Sign in to Spotify"**
-   button — it sits next to Start, and only appears while nobody is signed in. A code
-   shows up on screen. Open **spotify.com/pair** on your phone or computer, log in there
-   if it asks, and type that code. The television picks it up on its own after a few
-   seconds; the button then disappears, which is how you know it worked.
+1. **An optional question first:** whether the app may *display over other apps*. It is
+   only needed if the TV itself is in the speaker group (see [On the screen](#on-the-screen)).
+   **Turn on** opens the TV's settings; flip the switch for Crossfade Bridge, press Back,
+   and the card shows *on ✓* and moves along by itself. **Not now** skips it. It is asked
+   once; the settings row changes it later.
+2. **Sign in to Spotify.** The TV shows a **QR code** and a short code in large type.
+   Scan the QR with your phone and confirm — or open **spotify.com/pair** and type the
+   code. The TV picks it up by itself within a few seconds. Nothing else is shown until
+   the account is linked, because nothing else works without it.
 
    Credentials are minted **on the device** and stay there.
-2. **Choose where it plays.** The app browses mDNS and lists your speakers and groups.
-3. **Start.** It shows up in Spotify as a Connect device called *Crossfade Bridge*, on all
+3. **Choose where it plays.** The app browses mDNS and lists your speakers and groups.
+4. **Start.** The button follows the bridge: **Start** (green) → **Starting…** → **Stop**
+   (red), with the status line in colour. It shows up in Spotify as a Connect device called *Crossfade Bridge*, on all
    your devices, because librespot registers with Spotify's cloud the same way official
    clients do.
 
 Play, pause and skip stay in Spotify. The app only decides the destination and how tracks
 blend into each other.
+
+If the bridge's connection to Spotify drops — a network blip, a session expired days
+in — it notices within seconds and reconnects by itself. Pressing Start also brings it
+back.
+
+### On the screen
+
+When a song starts, the TV shows **what is playing**: the cover, a blurred wash of it
+behind, the title, the artists, the album and the progress. The screen stays on while
+music plays; paused, it lets the TV's screensaver in.
+
+**If the TV is part of the speaker group**, casting makes it open Google's *Default
+Media Receiver*, full screen, with nothing on it. An app cannot come back in front of
+that on Android 14, so with the optional *display over other apps* permission the
+picture is drawn **on top of it** instead. **Back** or **Home** closes it; it goes away
+by itself after 5 minutes without music, and comes back when the next song starts. The
+other buttons do nothing, so a nudged arrow does not uncover the blank receiver.
+
+Without the permission, the picture is still there whenever the app is in front, and
+from the **Now playing** button.
 
 ### Settings
 
@@ -129,6 +158,7 @@ blend into each other.
 | **Play on** | The speaker or group. Required: the bridge has no sound of its own, so it will not start without a destination. |
 | **Crossfade** | Seconds of blend, 0 to 12. Zero switches it off. |
 | **Crossfade within an album too** | *No* by default: consecutive album tracks run on with no gap and no blend, which is what Spotify does. The record's own mastering already handles that join. Set it to *Yes* if you would rather never hear a seam. |
+| **Show over other apps** | Whether the picture may be drawn over Google's receiver. Opens the TV's settings, where it is switched on or off. |
 | **Failure reports** | Off by default. See below. |
 | **Version** | Checks GitHub releases. It only tells you: installing is still your job. |
 
@@ -232,9 +262,12 @@ survive:
 cd android && ./test-redact.sh
 ```
 
-**The published APK is signed with a debug keystore**, which is what a build without
-Gradle produces. Android accepts it for sideloading; it is not a release signature, and
-an APK signed with a different key cannot upgrade it in place.
+**Signing.** The script signs with `android/signing/crossfade-bridge.keystore`, which is
+kept out of git, and **stops if it is missing** rather than making a new one. An APK
+signed with a different key cannot upgrade an installed one, so a key that quietly
+changes forces everyone to uninstall and sign in again — which is what 0.1.2 had to do
+after the old key was lost. A fork needs its own keystore there (`keytool -genkeypair`);
+back it up.
 
 ---
 
