@@ -28,6 +28,9 @@ object Librespot {
 
     external fun nativeStop()
 
+    /** False once the worker has died on its own, which it does without telling anyone. */
+    external fun nativeIsRunning(): Boolean
+
     /**
      * Cast devices and groups on the network, one per line. Blocks: never on the UI
      * thread. Null for the same reason as [nativeAuthBegin].

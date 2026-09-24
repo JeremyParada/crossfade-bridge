@@ -11,6 +11,8 @@
     <!-- Buttons -->
     <string name="start">Start</string>
     <string name="apply_and_restart">Apply and restart</string>
+    <string name="starting">Starting…</string>
+    <string name="status_starting">● Starting…</string>
     <string name="stop">Stop</string>
     <string name="sign_in">Sign in to Spotify</string>
     <string name="save">Save</string>
@@ -43,8 +45,8 @@
     <!-- Status line -->
     <string name="status_not_signed_in">Not signed in yet.</string>
     <string name="status_settings_changed">Settings changed. Press \"Apply and restart\".</string>
-    <string name="status_running">Playing as \"%1$s\"</string>
-    <string name="status_running_on">Playing as \"%1$s\" on %2$s</string>
+    <string name="status_running">● Active — pick \"%1$s\" in Spotify</string>
+    <string name="status_running_on">● Active — pick \"%1$s\" in Spotify · plays on %2$s</string>
     <string name="status_ready">Ready. Press \"Start\" and pick it in Spotify.</string>
     <string name="status_sign_in_first">Sign in to Spotify first.</string>
     <string name="status_searching">Looking for speakers and groups…</string>

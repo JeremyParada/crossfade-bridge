@@ -8,9 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import java.util.concurrent.Executors
 
 /**
  * Keeps librespot alive while the television is off.
@@ -24,27 +27,24 @@ class BridgeService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private var multicastLock: WifiManager.MulticastLock? = null
-    private var running = false
-        set(value) {
-            field = value
-            isRunning = value
-        }
+    private var foreground = false
+    private var destroyed = false
+
+    enum class State { STOPPED, STARTING, RUNNING }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (running) return START_STICKY
-
-        startForeground(NOTIFICATION_ID, buildNotification())
-        acquireLocks()
+        if (!foreground) {
+            startForeground(NOTIFICATION_ID, buildNotification())
+            acquireLocks()
+            foreground = true
+        }
 
         // Read from the settings rather than the Intent: START_STICKY redelivers this
         // service with a null Intent after the system kills the app, and defaults picked
         // there would quietly cast nowhere and crossfade by a number nobody chose.
-        val settings = Settings(this)
-        val castTo = settings.group
-
-        if (castTo == null) {
+        if (Settings(this).group == null) {
             // The only audio backend is the HTTP one, so with nowhere to cast this would
             // serve a stream to nobody while claiming to play.
             Log.e(TAG, "no cast target chosen; stopping the service")
@@ -52,33 +52,83 @@ class BridgeService : Service() {
             return START_NOT_STICKY
         }
 
-        val started = Librespot.nativeStart(
-            DEVICE_NAME,
-            BIND,
-            castTo,
-            settings.crossfadeSecs,
-            settings.crossfadeAlbums,
-            filesDir.absolutePath,
-        )
-
-        if (!started) {
-            // Almost always "no credentials yet". Staying up would just hold the locks
-            // for nothing and look like it is working.
-            Log.e(TAG, "librespot did not start; stopping the service")
-            Debug.report(this, "librespot no arrancó")
-            stopSelf()
-            return START_NOT_STICKY
-        }
-
-        running = true
+        // Start again on a service that is already up is not a no-op: the native worker
+        // may have died under it, and pressing Start is how someone says it is not
+        // working. Only a start that is in flight, or a worker still alive, is left be.
+        if (state == State.STOPPED) launch()
+        else if (state == State.RUNNING) checkAlive()
         return START_STICKY
     }
 
-    override fun onDestroy() {
-        if (running) {
+    /**
+     * Starts the native side off the main thread.
+     *
+     * `nativeStart` waits for the stream to be served, up to ten seconds; on the main
+     * thread that froze the screen and, worse, meant the screen asked "is it running?"
+     * before the answer existed.
+     */
+    private fun launch() {
+        publish(State.STARTING)
+        val settings = Settings(this)
+        val castTo = settings.group
+        val secs = settings.crossfadeSecs
+        val albums = settings.crossfadeAlbums
+        val dir = filesDir.absolutePath
+        NATIVE.execute {
+            // A dead worker is still parked on the native side until stopped.
             Librespot.nativeStop()
-            running = false
+            val started = Librespot.nativeStart(DEVICE_NAME, BIND, castTo, secs, albums, dir)
+            main.post {
+                if (destroyed) return@post
+                if (started) {
+                    publish(State.RUNNING)
+                    main.postDelayed(watchdog, WATCHDOG_MS)
+                } else {
+                    // Almost always "no credentials yet". Staying up would just hold
+                    // the locks for nothing and look like it is working.
+                    Log.e(TAG, "librespot did not start; stopping the service")
+                    Debug.report(this, "librespot no arrancó")
+                    stopSelf()
+                }
+            }
         }
+    }
+
+    /**
+     * Restarts the native side if its worker ended by itself.
+     *
+     * Spirc ends when its connection does, and after days up a dropped network or an
+     * expired session does exactly that. Nothing else notices: the notification stays,
+     * the screen says running, and the device is simply gone from Spotify until someone
+     * presses Stop and Start. This is that, done for them.
+     */
+    private fun checkAlive() {
+        NATIVE.execute {
+            if (Librespot.nativeIsRunning()) return@execute
+            main.post {
+                if (destroyed || state != State.RUNNING) return@post
+                Log.w(TAG, "the native worker died; restarting it")
+                main.removeCallbacks(watchdog)
+                launch()
+            }
+        }
+    }
+
+    private val watchdog = object : Runnable {
+        override fun run() {
+            if (destroyed) return
+            checkAlive()
+            main.postDelayed(this, WATCHDOG_MS)
+        }
+    }
+
+    override fun onDestroy() {
+        destroyed = true
+        main.removeCallbacks(watchdog)
+        // Queued behind any start in flight, so a start that finishes after this cannot
+        // leave a worker running with no service to stop it.
+        NATIVE.execute { Librespot.nativeStop() }
+        publish(State.STOPPED)
         releaseLocks()
         super.onDestroy()
     }
@@ -139,10 +189,30 @@ class BridgeService : Service() {
         private const val CHANNEL_ID = "playback"
         private const val NOTIFICATION_ID = 1
 
-        /** Whether the bridge is up, so the screen can say so without binding to it. */
+        private const val WATCHDOG_MS = 15_000L
+
+        /**
+         * One thread for every native start and stop, shared by all instances: a Stop
+         * then Start creates a new service while the old one is still winding down,
+         * and the two must reach the native side in the order they were pressed.
+         */
+        private val NATIVE = Executors.newSingleThreadExecutor()
+        private val main = Handler(Looper.getMainLooper())
+
+        /** What the bridge is doing, so the screen can say so without binding to it. */
         @Volatile
-        var isRunning = false
+        var state = State.STOPPED
             private set
+
+        val isRunning get() = state == State.RUNNING
+
+        /** Called on the main thread whenever [state] changes. */
+        var onStateChanged: (() -> Unit)? = null
+
+        private fun publish(new: State) {
+            state = new
+            main.post { onStateChanged?.invoke() }
+        }
 
         const val DEVICE_NAME = "Crossfade Bridge"
         const val BIND = "0.0.0.0:8321"

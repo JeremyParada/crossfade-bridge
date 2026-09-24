@@ -13,6 +13,8 @@
     <!-- Botones -->
     <string name="start">Iniciar</string>
     <string name="apply_and_restart">Aplicar y reiniciar</string>
+    <string name="starting">Iniciando…</string>
+    <string name="status_starting">● Iniciando…</string>
     <string name="stop">Detener</string>
     <string name="sign_in">Iniciar sesión en Spotify</string>
     <string name="save">Guardar</string>
@@ -45,8 +47,8 @@
     <!-- Línea de estado -->
     <string name="status_not_signed_in">Sin iniciar sesión todavía.</string>
     <string name="status_settings_changed">Ajustes cambiados. Pulsa «Aplicar y reiniciar».</string>
-    <string name="status_running">Sonando como «%1$s»</string>
-    <string name="status_running_on">Sonando como «%1$s» en %2$s</string>
+    <string name="status_running">● Activo — elige «%1$s» en Spotify</string>
+    <string name="status_running_on">● Activo — elige «%1$s» en Spotify · suena en %2$s</string>
     <string name="status_ready">Listo. Pulsa «Iniciar» y elígelo en Spotify.</string>
     <string name="status_sign_in_first">Inicia sesión en Spotify primero.</string>
     <string name="status_searching">Buscando altavoces y grupos…</string>

@@ -52,6 +52,7 @@ class MainActivity : Activity() {
     private lateinit var debugRow: Row
     private lateinit var versionRow: Row
     private lateinit var startButton: Button
+    private lateinit var stopButton: Button
     private lateinit var signInButton: Button
 
     /** Set when an option changed while the bridge was running, which Start applies. */
@@ -79,6 +80,19 @@ class MainActivity : Activity() {
         checkForUpdate()
         // Whoever opens this is nearly always here to press it.
         startButton.requestFocus()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // The service starts on its own thread and can restart itself, so the screen
+        // follows it rather than guessing right after a button is pressed.
+        BridgeService.onStateChanged = { if (!isFinishing && !isDestroyed) refresh() }
+        refresh()
+    }
+
+    override fun onPause() {
+        BridgeService.onStateChanged = null
+        super.onPause()
     }
 
     /**
@@ -146,7 +160,8 @@ class MainActivity : Activity() {
             addView(status)
         }
 
-        startButton = button(getString(R.string.start), primary = true) { start() }
+        startButton = button(getString(R.string.start), primary = true) { primaryAction() }
+        stopButton = button(getString(R.string.stop)) { stop() }
         signInButton = button(getString(R.string.sign_in)) { beginAuth() }
 
         return LinearLayout(this).apply {
@@ -155,7 +170,7 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, dp(28))
             addView(titles)
             addView(startButton)
-            addView(button(getString(R.string.stop)) { stop() })
+            addView(stopButton)
             addView(signInButton)
         }
     }
@@ -300,14 +315,36 @@ class MainActivity : Activity() {
         versionRow.show(newerRelease ?: version)
 
         signInButton.visibility = if (signedIn) View.GONE else View.VISIBLE
-        startButton.text =
-            getString(if (settingsAreStale) R.string.apply_and_restart else R.string.start)
 
+        // One button that says what pressing it will do, coloured by what the bridge is
+        // doing now: a status line alone was too easy to miss from the sofa.
+        val state = BridgeService.state
+        if (state != BridgeService.State.RUNNING) settingsAreStale = false
+        when {
+            settingsAreStale ->
+                paint(startButton, R.string.apply_and_restart, ACCENT, ACCENT_BRIGHT, BACKGROUND)
+            state == BridgeService.State.STARTING ->
+                paint(startButton, R.string.starting, CARD, FOCUS, MUTED)
+            state == BridgeService.State.RUNNING ->
+                paint(startButton, R.string.stop, DANGER, DANGER_BRIGHT, TEXT)
+            else -> paint(startButton, R.string.start, ACCENT, ACCENT_BRIGHT, BACKGROUND)
+        }
+        // A separate Stop is only needed while the main button means something else.
+        stopButton.visibility = if (settingsAreStale) View.VISIBLE else View.GONE
+
+        status.setTextColor(
+            when {
+                settingsAreStale || state == BridgeService.State.STARTING -> WARNING
+                state == BridgeService.State.RUNNING -> ACCENT
+                else -> MUTED
+            }
+        )
         val name = BridgeService.DEVICE_NAME
         status.text = when {
             !signedIn -> getString(R.string.status_not_signed_in)
             settingsAreStale -> getString(R.string.status_settings_changed)
-            BridgeService.isRunning -> prefs.group
+            state == BridgeService.State.STARTING -> getString(R.string.status_starting)
+            state == BridgeService.State.RUNNING -> prefs.group
                 ?.let { getString(R.string.status_running_on, name, it) }
                 ?: getString(R.string.status_running, name)
             prefs.group == null -> getString(R.string.status_pick_output)
@@ -324,6 +361,15 @@ class MainActivity : Activity() {
 
     // --- actions ------------------------------------------------------------------
 
+    private fun primaryAction() {
+        when {
+            settingsAreStale -> start()
+            BridgeService.state == BridgeService.State.STARTING -> Unit
+            BridgeService.state == BridgeService.State.RUNNING -> stop()
+            else -> start()
+        }
+    }
+
     private fun start() {
         if (!signedIn) {
             status.text = getString(R.string.status_sign_in_first)
@@ -337,18 +383,22 @@ class MainActivity : Activity() {
             chooseGroup(thenStart = true)
             return
         }
-        if (settingsAreStale) stopService(Intent(this, BridgeService::class.java))
-        // No extras: the service reads the same settings this screen writes, so a
-        // restart by the system starts with what the person actually chose.
-        startForegroundService(Intent(this, BridgeService::class.java))
+        val restart = settingsAreStale
         settingsAreStale = false
-        refresh()
+        if (restart) stopService(Intent(this, BridgeService::class.java))
+        // No extras: the service reads the same settings this screen writes, so a
+        // restart by the system starts with what the person actually chose. It reports
+        // Starting and Running itself, through onStateChanged.
+        startForegroundService(Intent(this, BridgeService::class.java))
     }
 
     private fun stop() {
-        stopService(Intent(this, BridgeService::class.java))
         settingsAreStale = false
+        stopService(Intent(this, BridgeService::class.java))
+        // A service never started sends no state change, so redraw here as well.
         refresh()
+        // Stop can disappear from under the remote; put the focus back somewhere useful.
+        if (!startButton.hasFocus()) startButton.requestFocus()
     }
 
     /**
@@ -509,25 +559,30 @@ class MainActivity : Activity() {
             text = label
             isAllCaps = false
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            setTextColor(if (primary) BACKGROUND else TEXT)
             setPadding(dp(28), dp(14), dp(28), dp(14))
             stateListAnimator = null
-            val resting = if (primary) ACCENT else CARD
-            // Focus brightens the button rather than recolouring it: the primary one has
-            // to stay recognisably the primary one while the remote sits on it, which is
-            // where it starts.
-            val focusedColour = if (primary) ACCENT_BRIGHT else FOCUS
-            background = rounded(resting)
-            // Replacing the background drops the platform's own focus indication, and a
-            // remote has nothing else to show where it is.
-            setOnFocusChangeListener { v, focused ->
-                v.background = rounded(if (focused) focusedColour else resting)
-            }
+            if (primary) paint(this, null, ACCENT, ACCENT_BRIGHT, BACKGROUND)
+            else paint(this, null, CARD, FOCUS, TEXT)
             setOnClickListener { onClick() }
             layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
                 leftMargin = dp(12)
             }
         }
+
+    /**
+     * Colours a button at rest and under focus.
+     *
+     * Focus brightens rather than recolours: the button has to stay recognisably what it
+     * is while the remote sits on it, which is where the main one starts. Replacing the
+     * background drops the platform's own focus indication, and a remote has nothing
+     * else to show where it is.
+     */
+    private fun paint(b: Button, label: Int?, resting: Int, focused: Int, textColour: Int) {
+        if (label != null) b.text = getString(label)
+        b.setTextColor(textColour)
+        b.background = rounded(if (b.hasFocus()) focused else resting)
+        b.setOnFocusChangeListener { v, has -> v.background = rounded(if (has) focused else resting) }
+    }
 
     private fun rounded(colour: Int) = GradientDrawable().apply {
         setColor(colour)
@@ -553,6 +608,9 @@ class MainActivity : Activity() {
         private val MUTED = Color.parseColor("#9AA0A6")
         private val ACCENT = Color.parseColor("#35C46B")
         private val ACCENT_BRIGHT = Color.parseColor("#5BE093")
+        private val DANGER = Color.parseColor("#B3382F")
+        private val DANGER_BRIGHT = Color.parseColor("#E0544A")
+        private val WARNING = Color.parseColor("#F2B84B")
     }
 }
 
