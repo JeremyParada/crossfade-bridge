@@ -6,8 +6,10 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -50,10 +52,29 @@ class MainActivity : Activity() {
     private lateinit var crossfadeRow: Row
     private lateinit var albumRow: Row
     private lateinit var debugRow: Row
+    private lateinit var overlayRow: Row
     private lateinit var versionRow: Row
     private lateinit var startButton: Button
     private lateinit var stopButton: Button
-    private lateinit var signInButton: Button
+    private lateinit var nowButton: Button
+
+    /** Whether music was playing at the last look; null until the first one. */
+    private var wasPlaying: Boolean? = null
+    private lateinit var retryButton: Button
+    private lateinit var introCard: View
+    private lateinit var introState: TextView
+    private lateinit var introEnable: Button
+    private lateinit var authCard: View
+    private lateinit var qrView: ImageView
+    private lateinit var codeText: TextView
+    private lateinit var stepsText: TextView
+    private val setupViews = mutableListOf<View>()
+
+    /** False until the disk has been read, so nothing flashes before we know. */
+    private var checked = false
+
+    /** A code is on screen or being fetched; guards against asking twice. */
+    private var authInFlight = false
 
     /** Set when an option changed while the bridge was running, which Start applies. */
     private var settingsAreStale = false
@@ -88,11 +109,60 @@ class MainActivity : Activity() {
         // follows it rather than guessing right after a button is pressed.
         BridgeService.onStateChanged = { if (!isFinishing && !isDestroyed) refresh() }
         refresh()
+        // Back from the television's settings with the permission on: say so, then move
+        // on to signing in by itself -- there is nothing left to decide on this step.
+        if (checked && !prefs.overlayAsked && Overlay.allowed(this)) {
+            ui.removeCallbacks(introAdvance)
+            ui.postDelayed(introAdvance, 1500)
+        }
+        // Opening the app mid-song is a visit to the settings, so only a song that
+        // starts from here on takes the screen.
+        wasPlaying = null
+        watchPlayback.run()
+        // A code still on screen: pick the polling back up where onPause left it.
+        if (authPolling) {
+            ui.removeCallbacks(authPoll)
+            ui.postDelayed(authPoll, 2000)
+        }
     }
 
     override fun onPause() {
         BridgeService.onStateChanged = null
+        ui.removeCallbacks(watchPlayback)
+        // Timers that hold this screen: left running they poll native code for a screen
+        // nobody sees and keep it alive until a code nobody will enter expires.
+        ui.removeCallbacks(introAdvance)
+        ui.removeCallbacks(authPoll)
         super.onPause()
+    }
+
+    private val introAdvance = Runnable { if (!isFinishing && !isDestroyed) finishIntro() }
+
+    /**
+     * Shows what is playing when it starts, the way Spotify's own TV app does.
+     *
+     * Only on the moment it starts: someone who came back here with music on did it to
+     * change something, and being thrown back to the picture would be a fight.
+     */
+    private val watchPlayback = object : Runnable {
+        override fun run() {
+            val snapshot = Librespot.nativeNowPlaying().orEmpty()
+            val loaded = snapshot.isNotEmpty()
+            val playing = snapshot.endsWith("\n1")
+            nowButton.visibility = if (loaded) View.VISIBLE else View.GONE
+            // With the overlay allowed the service shows the picture itself, over whatever
+            // is in front -- including Google's receiver.
+            if (playing && wasPlaying == false && !Overlay.allowed(this@MainActivity)) {
+                showNowPlaying()
+                return
+            }
+            wasPlaying = playing
+            ui.postDelayed(this, 2000)
+        }
+    }
+
+    private fun showNowPlaying() {
+        startActivity(Intent(this, NowPlayingActivity::class.java))
     }
 
     /**
@@ -117,9 +187,17 @@ class MainActivity : Activity() {
             ui.post {
                 if (isFinishing || isDestroyed) return@post
                 signedIn = signed
+                checked = true
                 pendingReports = waiting
                 version = installed
                 refresh()
+                // Start is hidden until this read says there is an account, so the focus
+                // asked for in onCreate found nothing and the first OK did nothing.
+                if (signed && currentFocus == null) startButton.requestFocus()
+                // Nothing else on this screen works without an account, so the code is
+                // asked for straight away rather than behind a button.
+                if (!signed && !authInFlight && prefs.overlayAsked) beginAuth()
+                if (!prefs.overlayAsked) introEnable.requestFocus()
             }
         }.start()
     }
@@ -134,8 +212,11 @@ class MainActivity : Activity() {
         }
 
         page.addView(header())
-        page.addView(settingsCard())
-        page.addView(supportCard())
+        page.addView(introCard())
+        page.addView(authCard())
+        setupViews += settingsCard()
+        setupViews += supportCard()
+        setupViews.forEach { page.addView(it) }
 
         // A television can be overscanned and the rows grow with their subtitles, so the
         // whole page scrolls rather than pushing anything off the screen.
@@ -162,7 +243,9 @@ class MainActivity : Activity() {
 
         startButton = button(getString(R.string.start), primary = true) { primaryAction() }
         stopButton = button(getString(R.string.stop)) { stop() }
-        signInButton = button(getString(R.string.sign_in)) { beginAuth() }
+        nowButton = button(getString(R.string.now_playing)) { showNowPlaying() }.apply {
+            visibility = View.GONE
+        }
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -170,9 +253,117 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, dp(28))
             addView(titles)
             addView(startButton)
+            addView(nowButton)
             addView(stopButton)
-            addView(signInButton)
         }
+    }
+
+    /**
+     * The whole screen until an account is linked: a QR to scan and the code to confirm.
+     *
+     * The settings, Start and the rest are hidden meanwhile, because none of them can do
+     * anything yet and a remote would only wander into them. A TV has no keyboard, so
+     * typing a URL is the worst way in; the QR opens the pairing page with the code
+     * already filled in.
+     */
+    /**
+     * The one optional question, asked once before signing in: may the picture be drawn
+     * over other apps.
+     *
+     * Asked up front because the reason for it only shows up later, mid-song, as a blank
+     * receiver screen nobody would connect to a permission. Says what it is for, that it
+     * is optional, and whether it is on; the settings row changes it afterwards.
+     */
+    private fun introCard(): View {
+        introState = text("", 18f, MUTED, bold = true).apply { setPadding(0, dp(16), 0, dp(20)) }
+        introEnable = button(getString(R.string.intro_enable), primary = true) {
+            startActivity(Overlay.permissionIntent(this))
+        }.apply { (layoutParams as LinearLayout.LayoutParams).leftMargin = 0 }
+        val buttons = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(introEnable)
+            // Painted a shade off the card: at the card's own colour it reads as plain text.
+            addView(button(getString(R.string.intro_skip)) { finishIntro() }.also {
+                paint(it, null, FOCUS, Color.parseColor("#3A4656"), TEXT)
+            })
+        }
+        introCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = rounded(CARD)
+            setPadding(dp(40), dp(36), dp(40), dp(36))
+            visibility = View.GONE
+            addView(text(getString(R.string.intro_title), 26f, TEXT, bold = true).apply {
+                setPadding(0, 0, 0, dp(12))
+            })
+            addView(text(getString(R.string.intro_body), 18f, MUTED))
+            addView(introState)
+            addView(buttons)
+        }
+        return introCard
+    }
+
+    /** Past the optional step, whichever way it went; on to signing in if needed. */
+    private fun finishIntro() {
+        if (prefs.overlayAsked) return
+        prefs.overlayAsked = true
+        refresh()
+        if (!signedIn && !authInFlight) beginAuth()
+        if (signedIn) startButton.requestFocus()
+    }
+
+    private fun authCard(): View {
+        qrView = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(300), dp(300)).apply {
+                rightMargin = dp(40)
+            }
+        }
+        stepsText = text("", 18f, MUTED)
+        codeText = text("", 56f, TEXT, bold = true).apply {
+            letterSpacing = 0.15f
+            setPadding(0, dp(12), 0, dp(20))
+        }
+        retryButton = button(getString(R.string.auth_new_code), primary = true) { beginAuth() }
+            .apply {
+                visibility = View.GONE
+                (layoutParams as LinearLayout.LayoutParams).leftMargin = 0
+            }
+        val words = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
+            addView(text(getString(R.string.auth_title), 28f, TEXT, bold = true).apply {
+                setPadding(0, 0, 0, dp(12))
+            })
+            addView(stepsText)
+            addView(codeText)
+            addView(retryButton)
+        }
+        authCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = rounded(CARD)
+            setPadding(dp(40), dp(40), dp(40), dp(40))
+            visibility = View.GONE
+            addView(qrView)
+            addView(words)
+        }
+        return authCard
+    }
+
+    /** Draws the native side's QR matrix, with the quiet margin scanners need. */
+    private fun qrBitmap(text: String): Bitmap? {
+        val rows = Librespot.nativeQr(text).orEmpty().lines().filter { it.isNotEmpty() }
+        if (rows.isEmpty()) return null
+        val margin = 4
+        // Sized by the longest row too: a ragged matrix must not write past the bitmap.
+        val size = maxOf(rows.size, rows.maxOf { it.length }) + margin * 2
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(Color.WHITE)
+        rows.forEachIndexed { y, row ->
+            row.forEachIndexed { x, c ->
+                if (c == '1') bitmap.setPixel(x + margin, y + margin, Color.BLACK)
+            }
+        }
+        return bitmap
     }
 
     private fun settingsCard(): View {
@@ -192,6 +383,10 @@ class MainActivity : Activity() {
             if (prefs.debug) Debug.install(this)
             onSettingChanged()
         }
+        overlayRow = Row(R.string.overlay_title, R.string.overlay_subtitle) {
+            // Granted or taken away only there; onResume redraws the row on the way back.
+            startActivity(Overlay.permissionIntent(this))
+        }
         versionRow = Row(R.string.version_title, R.string.version_subtitle) { checkForUpdate() }
 
         return LinearLayout(this).apply {
@@ -201,6 +396,7 @@ class MainActivity : Activity() {
             addView(groupRow.view)
             addView(crossfadeRow.view)
             addView(albumRow.view)
+            addView(overlayRow.view)
             addView(debugRow.view)
             addView(versionRow.view)
         }
@@ -313,8 +509,22 @@ class MainActivity : Activity() {
             }
         )
         versionRow.show(newerRelease ?: version)
+        overlayRow.show(
+            getString(if (Overlay.allowed(this)) R.string.allowed else R.string.not_allowed)
+        )
 
-        signInButton.visibility = if (signedIn) View.GONE else View.VISIBLE
+        // First the optional question, then the pairing card, then the app itself: each
+        // step is the whole page until it is done.
+        val allowed = Overlay.allowed(this)
+        val intro = checked && !prefs.overlayAsked
+        introCard.visibility = if (intro) View.VISIBLE else View.GONE
+        introState.text = getString(if (allowed) R.string.intro_state_on else R.string.intro_state_off)
+        introState.setTextColor(if (allowed) ACCENT else MUTED)
+        val linking = checked && !intro && !signedIn
+        authCard.visibility = if (linking) View.VISIBLE else View.GONE
+        val setup = if (signedIn && !intro) View.VISIBLE else View.GONE
+        setupViews.forEach { it.visibility = setup }
+        startButton.visibility = setup
 
         // One button that says what pressing it will do, coloured by what the bridge is
         // doing now: a status line alone was too easy to miss from the sofa.
@@ -341,7 +551,10 @@ class MainActivity : Activity() {
         )
         val name = BridgeService.DEVICE_NAME
         status.text = when {
-            !signedIn -> getString(R.string.status_not_signed_in)
+            // The card says everything on this step; a hint about Start, which is
+            // hidden, would only confuse.
+            intro -> ""
+            !signedIn -> getString(R.string.status_link)
             settingsAreStale -> getString(R.string.status_settings_changed)
             state == BridgeService.State.STARTING -> getString(R.string.status_starting)
             state == BridgeService.State.RUNNING -> prefs.group
@@ -504,23 +717,42 @@ class MainActivity : Activity() {
      * the only symptom is a television frozen for several seconds.
      */
     private fun beginAuth() {
-        status.text = getString(R.string.status_searching)
+        // A remote repeats OK when held; two requests would put two codes in flight.
+        if (authInFlight) return
+        authInFlight = true
+        retryButton.visibility = View.GONE
+        qrView.setImageDrawable(null)
+        stepsText.text = getString(R.string.auth_requesting)
+        codeText.text = ""
         Thread {
             val shown = Librespot.nativeAuthBegin(filesDir.absolutePath).orEmpty()
+            val url = shown.substringAfter('|')
+            val qr = if (shown.isEmpty()) null else qrBitmap(url)
             ui.post {
                 if (isFinishing || isDestroyed) return@post
                 if (shown.isEmpty()) {
-                    status.text = getString(R.string.status_auth_error)
+                    authFailed(R.string.status_auth_error)
                     return@post
                 }
-                status.text = getString(
-                    R.string.status_auth_code,
-                    shown.substringAfter('|'),
-                    shown.substringBefore('|'),
+                // Scaled without smoothing: a blurred QR is one scanners give up on.
+                qrView.setImageDrawable(
+                    qr?.let { BitmapDrawable(resources, it).apply { isFilterBitmap = false } }
                 )
+                // The page address alone: the code is printed large right below it.
+                stepsText.text = getString(R.string.auth_steps, url.substringBefore('?'))
+                codeText.text = shown.substringBefore('|')
                 pollAuth()
             }
         }.start()
+    }
+
+    private fun authFailed(message: Int) {
+        authInFlight = false
+        stepsText.text = getString(message)
+        codeText.text = ""
+        qrView.setImageDrawable(null)
+        retryButton.visibility = View.VISIBLE
+        retryButton.requestFocus()
     }
 
     /**
@@ -531,17 +763,32 @@ class MainActivity : Activity() {
      * that is never entered leaves the native side pending indefinitely.
      */
     private fun pollAuth() {
-        ui.postDelayed({
-            if (isFinishing || isDestroyed) return@postDelayed
+        authPolling = true
+        ui.removeCallbacks(authPoll)
+        ui.postDelayed(authPoll, 2000)
+    }
+
+    /** A code is on screen and its answer is being waited for. */
+    private var authPolling = false
+
+    private val authPoll: Runnable = Runnable {
+        if (isFinishing || isDestroyed) return@Runnable
             when (Librespot.nativeAuthStatus()) {
                 Librespot.AUTH_DONE -> {
+                    authPolling = false
+                    authInFlight = false
                     status.text = getString(R.string.status_signed_in)
+                    signedIn = true
+                    refresh()
+                    startButton.requestFocus()
                     reread()
                 }
-                Librespot.AUTH_FAILED -> status.text = getString(R.string.status_auth_failed)
-                else -> pollAuth()
+                Librespot.AUTH_FAILED -> {
+                    authPolling = false
+                    authFailed(R.string.status_auth_failed)
+                }
+                else -> ui.postDelayed(authPoll, 2000)
             }
-        }, 2000)
     }
 
     // --- small helpers ------------------------------------------------------------
@@ -634,4 +881,9 @@ class Settings(context: Context) {
     var debug: Boolean
         get() = prefs.getBoolean("debug", false)
         set(value) = prefs.edit().putBoolean("debug", value).apply()
+
+    /** The optional "show over other apps" step has been answered, either way. */
+    var overlayAsked: Boolean
+        get() = prefs.getBoolean("overlay_asked", false)
+        set(value) = prefs.edit().putBoolean("overlay_asked", value).apply()
 }

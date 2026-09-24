@@ -83,6 +83,8 @@ class BridgeService : Service() {
                 if (started) {
                     publish(State.RUNNING)
                     main.postDelayed(watchdog, WATCHDOG_MS)
+                    main.removeCallbacks(watchPlayback)
+                    watchPlayback.run()
                 } else {
                     // Almost always "no credentials yet". Staying up would just hold
                     // the locks for nothing and look like it is working.
@@ -122,9 +124,40 @@ class BridgeService : Service() {
         }
     }
 
+    /** Whether music was playing at the last look, and since when it has not been. */
+    private var wasPlaying = false
+    private var quietSince = 0L
+
+    /**
+     * Puts the picture over everything when a song starts, and takes it away after a
+     * while without music.
+     *
+     * Only on the start: someone who closed it with music on did so on purpose, and it
+     * coming straight back would be a fight with the remote.
+     */
+    private val watchPlayback = object : Runnable {
+        override fun run() {
+            if (destroyed) return
+            val playing = Librespot.nativeNowPlaying().orEmpty().endsWith("\n1")
+            val now = System.currentTimeMillis()
+            if (playing && !wasPlaying) Overlay.show(this@BridgeService)
+            if (playing) {
+                quietSince = 0
+            } else if (quietSince == 0L) {
+                quietSince = now
+            } else if (Overlay.isShown && now - quietSince > OVERLAY_QUIET_MS) {
+                Overlay.hide(this@BridgeService)
+            }
+            wasPlaying = playing
+            main.postDelayed(this, 2000)
+        }
+    }
+
     override fun onDestroy() {
         destroyed = true
         main.removeCallbacks(watchdog)
+        main.removeCallbacks(watchPlayback)
+        Overlay.hide(this)
         // Queued behind any start in flight, so a start that finishes after this cannot
         // leave a worker running with no service to stop it.
         NATIVE.execute { Librespot.nativeStop() }
@@ -190,6 +223,12 @@ class BridgeService : Service() {
         private const val NOTIFICATION_ID = 1
 
         private const val WATCHDOG_MS = 15_000L
+
+        /**
+         * Paused this long, the picture gives the screen back. Long enough to answer the
+         * door without losing it; short enough not to sit on a screen nobody is using.
+         */
+        private const val OVERLAY_QUIET_MS = 5 * 60_000L
 
         /**
          * One thread for every native start and stop, shared by all instances: a Stop

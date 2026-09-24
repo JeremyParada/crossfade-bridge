@@ -66,12 +66,15 @@ with zipfile.ZipFile(f"{out}/app-unsigned.apk", "a", zipfile.ZIP_DEFLATED) as z:
 PY
 
 echo "==> sign"
-KS="$HOME/.android/debug.keystore"
+# La clave vive en el proyecto (fuera de git) y NUNCA se genera sola. Hasta la 0.1.1 se
+# usaba ~/.android/debug.keystore, que se borro al desinstalar Android Studio; el script
+# fabrico otra en silencio y cada APK nuevo dejo de instalarse encima de los publicados.
+# Si falta, recuperala de la copia de seguridad: una clave nueva obliga a todos a
+# desinstalar y volver a iniciar sesion.
+KS="${KS:-$(pwd)/signing/crossfade-bridge.keystore}"
 if [ ! -f "$KS" ]; then
-    mkdir -p "$HOME/.android"
-    "$JAVA_HOME/bin/keytool" -genkeypair -keystore "$KS" -storepass android -keypass android \
-        -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
-        -dname "CN=Android Debug,O=Android,C=US"
+    echo "falta la clave de firma: $KS (restaurala de la copia de seguridad)" >&2
+    exit 1
 fi
 "$BT/zipalign.exe" -f -p 4 "$OUT/app-unsigned.apk" "$OUT/app-aligned.apk"
 "$BT/apksigner.bat" sign --ks "$KS" --ks-pass pass:android --key-pass pass:android \

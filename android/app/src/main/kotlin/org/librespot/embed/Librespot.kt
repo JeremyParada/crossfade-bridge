@@ -32,6 +32,16 @@ object Librespot {
     external fun nativeIsRunning(): Boolean
 
     /**
+     * Seven lines -- title, artists, album, cover URL, duration ms, position ms, playing
+     * (1/0) -- or empty when nothing is loaded. Nullable for the same reason as
+     * [nativeAuthBegin].
+     */
+    external fun nativeNowPlaying(): String?
+
+    /** A QR code for [text] as rows of 0 and 1, or empty. */
+    external fun nativeQr(text: String): String?
+
+    /**
      * Cast devices and groups on the network, one per line. Blocks: never on the UI
      * thread. Null for the same reason as [nativeAuthBegin].
      */

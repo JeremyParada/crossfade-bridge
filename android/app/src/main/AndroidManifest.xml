@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="2"
-    android:versionName="0.1.1">
+    android:versionCode="3"
+    android:versionName="0.1.2">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- "Display over other apps": when the TV is in the group, Google's receiver covers
+         the screen as soon as the cast starts, and only an overlay can sit above it. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <!-- A TV has no touchscreen; without this the app is filtered out of the launcher. -->
     <uses-feature android:name="android.software.leanback" android:required="true" />
@@ -21,7 +24,7 @@
         android:name=".BridgeApp"
         android:label="@string/app_name"
         android:banner="@drawable/banner"
-        android:icon="@drawable/banner"
+        android:icon="@drawable/ic_launcher"
         android:allowBackup="false">
 
         <activity
@@ -32,6 +35,10 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".NowPlayingActivity"
+            android:exported="false" />
 
         <service
             android:name=".BridgeService"

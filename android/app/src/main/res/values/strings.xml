@@ -13,8 +13,24 @@
     <string name="apply_and_restart">Apply and restart</string>
     <string name="starting">Starting…</string>
     <string name="status_starting">● Starting…</string>
+    <string name="now_playing">Now playing</string>
+    <string name="nothing_playing">Nothing is playing. Pick \"%1$s\" in Spotify.</string>
+    <string name="status_link">Link your Spotify account to get started.</string>
+    <string name="auth_title">Link your Spotify account</string>
+    <string name="auth_steps">Scan the code with your phone and confirm. Or go to %1$s and enter:</string>
+    <string name="auth_requesting">Asking Spotify for a code…</string>
+    <string name="auth_new_code">Get a new code</string>
+    <string name="overlay_title">Show over other apps</string>
+    <string name="overlay_subtitle">Needed if this TV is in the group: Google\'s receiver covers the screen</string>
+    <string name="allowed">Allowed</string>
+    <string name="not_allowed">Not allowed</string>
+    <string name="intro_title">Show the cover over other apps? (optional)</string>
+    <string name="intro_body">If this TV is part of the speaker group, Google\'s receiver takes over the screen when music starts and shows nothing. With this permission, Crossfade Bridge shows the cover, title and progress on top of it. Back on the remote closes it. You can change this later in the settings.</string>
+    <string name="intro_enable">Turn on</string>
+    <string name="intro_skip">Not now</string>
+    <string name="intro_state_off">Status: off</string>
+    <string name="intro_state_on">Status: on ✓</string>
     <string name="stop">Stop</string>
-    <string name="sign_in">Sign in to Spotify</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
 
@@ -52,7 +68,6 @@
     <string name="status_searching">Looking for speakers and groups…</string>
     <string name="status_nothing_found">Nothing answered. Are they switched on?</string>
     <string name="status_signed_in">Signed in.</string>
-    <string name="status_auth_code">Go to %1$s and enter the code: %2$s</string>
     <string name="status_auth_failed">Sign-in failed or the code expired.</string>
     <string name="status_auth_error">Could not start the sign-in. Check the network.</string>
     <string name="status_update">A newer version is out: %1$s · github.com/%2$s/releases</string>

@@ -15,8 +15,24 @@
     <string name="apply_and_restart">Aplicar y reiniciar</string>
     <string name="starting">Iniciando…</string>
     <string name="status_starting">● Iniciando…</string>
+    <string name="now_playing">Ahora suena</string>
+    <string name="nothing_playing">No suena nada. Elige «%1$s» en Spotify.</string>
+    <string name="status_link">Vincula tu cuenta de Spotify para empezar.</string>
+    <string name="auth_title">Vincula tu cuenta de Spotify</string>
+    <string name="auth_steps">Escanea el código con el móvil y confirma. O entra en %1$s e introduce:</string>
+    <string name="auth_requesting">Pidiendo un código a Spotify…</string>
+    <string name="auth_new_code">Pedir otro código</string>
+    <string name="overlay_title">Mostrar sobre otras apps</string>
+    <string name="overlay_subtitle">Necesario si esta tele está en el grupo: el receptor de Google tapa la pantalla</string>
+    <string name="allowed">Permitido</string>
+    <string name="not_allowed">No permitido</string>
+    <string name="intro_title">¿Mostrar la portada sobre otras apps? (opcional)</string>
+    <string name="intro_body">Si esta tele forma parte del grupo de altavoces, el receptor de Google se apodera de la pantalla al empezar la música y no muestra nada. Con este permiso, Crossfade Bridge muestra encima la portada, el título y el progreso. El botón Atrás del mando lo cierra. Puedes cambiarlo luego en los ajustes.</string>
+    <string name="intro_enable">Activar</string>
+    <string name="intro_skip">Ahora no</string>
+    <string name="intro_state_off">Estado: desactivado</string>
+    <string name="intro_state_on">Estado: activado ✓</string>
     <string name="stop">Detener</string>
-    <string name="sign_in">Iniciar sesión en Spotify</string>
     <string name="save">Guardar</string>
     <string name="cancel">Cancelar</string>
 
@@ -54,7 +70,6 @@
     <string name="status_searching">Buscando altavoces y grupos…</string>
     <string name="status_nothing_found">No contestó ningún dispositivo. ¿Están encendidos?</string>
     <string name="status_signed_in">Sesión iniciada.</string>
-    <string name="status_auth_code">Entra en %1$s e introduce el código: %2$s</string>
     <string name="status_auth_failed">Falló el acceso o caducó el código.</string>
     <string name="status_auth_error">No se pudo iniciar el acceso. Revisa la red.</string>
     <string name="status_update">Hay una versión nueva: %1$s · github.com/%2$s/releases</string>

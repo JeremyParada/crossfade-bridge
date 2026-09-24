@@ -13,8 +13,8 @@ android {
         // install on a device the .so cannot run on.
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
     }
 
     sourceSets["main"].jniLibs.srcDirs("../../librespot/embed/jniLibs")
